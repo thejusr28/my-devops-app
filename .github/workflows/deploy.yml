@@ -22,16 +22,18 @@ jobs:
 
             APP_DIR=/home/ec2-user/app
 
-            echo "Creating app directory..."
+            echo "Preparing app directory..."
             mkdir -p $APP_DIR
             cd $APP_DIR
 
+            # 🔥 Fix: handle dirty folder case
             if [ -d ".git" ]; then
-              echo "Updating existing repo..."
+              echo "Repo exists → updating"
               git fetch origin
               git reset --hard origin/main
             else
-              echo "Cloning fresh repo..."
+              echo "No repo → cleaning directory"
+              rm -rf * .[^.]* || true
               git clone https://github.com/thejusr28/my-devops-app.git .
             fi
 
