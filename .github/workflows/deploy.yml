@@ -1,4 +1,4 @@
-name: Deploy Website
+name: Deploy to EC2 (Docker)
 
 on:
   push:
@@ -10,26 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            set -e
 
-    - name: Copy files to server
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ec2-user
-        key: ${{ secrets.SSH_KEY }}
-        source: "index.html"
-        target: "/home/ec2-user/app"
-        strip_components: 0
+            mkdir -p /home/ec2-user/app
+            cd /home/ec2-user/app
 
-    - name: Move files to Nginx directory
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ec2-user
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          sudo rm -rf /usr/share/nginx/html/*
-          sudo cp -r /home/ec2-user/app/* /usr/share/nginx/html/
-          sudo systemctl restart nginx
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/thejusr28/my-devops-app.git .
+            else
+              git pull origin main
+            fi
+
+            docker stop my-app1 || true
+            docker rm my-app1 || true
+
+            docker build -t my-devops-app .
+
+            docker run -d -p 80:80 --name my-app1 my-devops-app
+
+            docker system prune -af || true
